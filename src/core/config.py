@@ -50,3 +50,5 @@ GEMINI_API_KEY: Final[str] = os.getenv("GEMINI_API_KEY")
 
 # Relevance Checker Configuration
 RELEVANCE_THRESHOLD: Final[float] = 0.5
+
+DEVICE: Final[str] = os.getenv("DEVICE", "cpu")

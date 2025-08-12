@@ -7,14 +7,16 @@ from typing import Any, List
 from langchain_community.vectorstores.pgvector import PGVector
 from langchain_huggingface import HuggingFaceEmbeddings
 
-from src.core.config import DEFAULT_K_RETRIEVAL, EMBEDDING_MODEL_NAME, PROBLEM_ID
+from src.core.config import DEFAULT_K_RETRIEVAL, DEVICE, EMBEDDING_MODEL_NAME, PROBLEM_ID
 
 
 class EmbeddingManager:
     """Manages embedding operations."""
 
     def __init__(self):
-        self.embeddings = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL_NAME)
+        self.embeddings = HuggingFaceEmbeddings(
+            model_name=EMBEDDING_MODEL_NAME, model_kwargs={"device": DEVICE}, encode_kwargs={"device": DEVICE}
+        )
 
     def get_embeddings(self) -> HuggingFaceEmbeddings:
         """Get the embedding model instance."""

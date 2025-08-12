@@ -10,7 +10,6 @@ from typing import Any, Dict, List, Optional, Tuple
 from src.core.config import COLLECTION_NAME, PROBLEM_ID, REFUSAL_MSG
 from src.database import DatabaseManager, VectorStoreManager
 from src.llm import KeywordExtractor, LLMChainBuilder
-from src.llm.smart_relevance import SmartRelevanceChecker
 from src.utils import DocumentLoader, DocumentProcessor
 from src.utils.logger import logger
 
@@ -65,8 +64,6 @@ class ChatbotLogic:
                 return None
 
             split_docs = self.document_processor.chunk_documents(raw_docs)
-            keywords = self.keyword_extractor.extract_keywords(split_docs)
-            self.relevance_checker = SmartRelevanceChecker(keywords)
 
             logger.info(f"Processed {len(split_docs)} document chunks")
             return split_docs
@@ -138,12 +135,6 @@ class ChatbotLogic:
         """
         if not self.qa_chain:
             return "QA chain not initialized", [], False
-
-        # Relevance checking temporarily disabled
-        # if not self.relevance_checker:
-        #     return "System not properly initialized", [], False
-        # if not self.relevance_checker.is_relevant(question):
-        #     return REFUSAL_MSG, [], False
 
         try:
             # Process with QA chain
