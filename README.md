@@ -31,7 +31,7 @@ The LectureHub Chatbot is a sophisticated RAG application designed to help stude
 - **⚡ Vector Similarity Search**: Fast and accurate document retrieval
 - **🐳 Docker Integration**: Easy setup with containerized database
 - **🔧 Modular Design**: Clean, maintainable codebase
-- **🔄 Mock LLM Support**: Works without API key for testing
+
 
 ## 🏗️ Architecture
 
@@ -50,7 +50,7 @@ lecturehub-chatbot/
 │   │   └── vectorstore.py       # Vector store management
 │   ├── llm/                      # LLM and language processing
 │   │   ├── llm_chain.py         # LLM chain management
-│   │   ├── mock_llm_chain.py    # Mock LLM for testing
+
 │   │   └── keyword_extractor.py # Keyword extraction
 │   ├── ui/                       # User interface
 │   │   ├── chat_manager.py      # Chat management
@@ -79,7 +79,7 @@ The main orchestrator that coordinates all components:
 #### 3. LLM Processing (`src/llm/`)
 - **🧠 LLMChainBuilder**: Creates and manages QA chains
 - **🔑 KeywordExtractor**: Extracts keywords for relevance checking
-- **🎯 MockLLMChainBuilder**: Provides mock responses for testing
+
 - **✅ SmartRelevanceChecker**: Determines if questions are relevant (currently disabled)
 
 #### 4. User Interface (`src/ui/`)
@@ -97,7 +97,7 @@ The main orchestrator that coordinates all components:
 
 - Python 3.8 or higher
 - Docker and Docker Compose (for database)
-- Google Gemini API key (optional - mock LLM available)
+- Google Gemini API key (required)
 
 ### 📦 Step-by-Step Installation
 
@@ -120,7 +120,7 @@ The main orchestrator that coordinates all components:
 4. **⚙️ Configure environment (optional):**
    ```bash
    cp env.template .env
-   # Edit .env with your GEMINI_API_KEY (optional)
+   # Edit .env with your GEMINI_API_KEY (required)
    ```
 
 5. **🧪 Test the setup:**
@@ -196,7 +196,7 @@ streamlit run main.py
 1. **🚀 Start the application** and navigate to the web interface
 2. **⚙️ Configure settings** in the sidebar:
    - Database connection parameters
-   - Google Gemini API key (optional)
+   - Google Gemini API key (required)
    - Application settings
 3. **📥 Ingest documents** by clicking "Ingest dữ liệu"
 4. **❓ Ask questions** about your educational content
@@ -343,10 +343,10 @@ def test_new_feature():
 ```
 
 #### 2. LLM API Issues
-- Verify `GEMINI_API_KEY` is set correctly (optional)
+- Verify `GEMINI_API_KEY` is set correctly (required)
 - Check API quota and limits
 - Ensure network connectivity
-- **💡 Tip**: Application works with mock LLM without API key
+- **💡 Tip**: Ensure GEMINI_API_KEY is properly configured
 
 #### 3. Document Loading Issues
 - Verify required files exist in `data/lectures/mmceasar2/`
@@ -378,14 +378,14 @@ export LOG_LEVEL=DEBUG
 
 - **🔄 Migrated from psycopg2 to psycopg**: Updated all database connections
 - **🎯 Disabled strict relevance checking**: Chatbot now accepts all questions
-- **🤖 Added mock LLM support**: Works without API key for testing
+
 - **🔧 Improved error handling**: Better fallback mechanisms
 - **📝 Updated documentation**: Comprehensive guides and examples
 
 ### 🎯 Key Improvements
 
 - **✅ No more "Xin lỗi, tôi chỉ hỗ trợ hỏi về bài giảng này thôi." responses**
-- **✅ Works without Google API key**
+
 - **✅ Better database compatibility**
 - **✅ Enhanced user experience**
 

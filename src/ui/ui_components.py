@@ -70,6 +70,22 @@ class SidebarManager:
             if api_key:
                 os.environ["GEMINI_API_KEY"] = api_key
 
+            # Memory configuration section
+            st.subheader("Memory Configuration")
+            memory_type = st.selectbox(
+                "Memory Type",
+                options=["buffer_window", "summary", "hybrid"],
+                index=0,
+                help="Loại memory để lưu trữ lịch sử hội thoại",
+            )
+            memory_k = st.slider(
+                "Buffer Size (k)",
+                min_value=1,
+                max_value=20,
+                value=5,
+                help="Số lượng tin nhắn gần nhất để giữ trong buffer",
+            )
+
             # Application configuration section
             st.subheader("Application Configuration")
             rebuild = st.checkbox("Tái tạo (rebuild) chỉ mục/collection", value=False)
@@ -80,6 +96,8 @@ class SidebarManager:
                 "connection_string": conn_str,
                 "db_params": db_params,
                 "api_key": api_key,
+                "memory_type": memory_type,
+                "memory_k": memory_k,
                 "rebuild": rebuild,
                 "ingest_button": ingest_btn,
             }

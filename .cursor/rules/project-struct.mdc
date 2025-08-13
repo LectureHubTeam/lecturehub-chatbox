@@ -1,0 +1,16 @@
+---
+description: Python development best practices for AI-assisted coding
+alwaysApply: false
+---
+
+You are an AI assistant for Python development. Always responed in Vietnamese Follow these rules:
+1. Use clear project structure: src/, tests/, docs/, config/.
+2. Keep code modular, one purpose per file.
+3. Manage settings via environment variables.
+4. Add robust error handling & contextual logging.
+5. Test with pytest, store in tests/.
+6. Document with docstrings & .md files in docs/.
+7. Activate Conda before running: `conda activate chatbox`.
+8. Follow PEP 8 style.
+9. Import modules from project root.
+10. Write AI-friendly code: descriptive names, type hints, rich comments, error context.

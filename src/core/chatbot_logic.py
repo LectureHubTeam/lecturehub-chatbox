@@ -24,6 +24,7 @@ class ChatbotLogic:
         self.llm_builder = LLMChainBuilder()
 
         # State variables
+        self.memory_manager = None
         self.vectorstore_manager = None
         self.relevance_checker = None
         self.qa_chain = None
@@ -96,6 +97,27 @@ class ChatbotLogic:
             logger.error(f"Vector store setup failed: {e}")
             return False
 
+    def setup_memory(self, memory_type: str = "buffer_window", k: int = 5) -> bool:
+        """
+        Setup memory manager.
+
+        Args:
+            memory_type: Type of memory ("buffer_window", "summary", "hybrid")
+            k: Number of messages to keep in buffer
+
+        Returns:
+            True if setup successful, False otherwise
+        """
+        try:
+            from src.memory import ChatMemoryManager
+
+            self.memory_manager = ChatMemoryManager(memory_type=memory_type, k=k)
+            logger.info(f"Memory manager setup completed successfully with type: {memory_type}")
+            return True
+        except Exception as e:
+            logger.error(f"Memory setup failed: {e}")
+            return False
+
     def setup_qa_chain(self) -> bool:
         """
         Setup QA chain.
@@ -112,16 +134,47 @@ class ChatbotLogic:
 
             from src.core.config import GEMINI_API_KEY
 
-            if GEMINI_API_KEY:
-                self.qa_chain = self.llm_builder.build_qa_chain(retriever)
-                logger.info("QA chain setup completed successfully with real LLM")
-            else:
-                raise Exception("No API key provided")
+            if not GEMINI_API_KEY:
+                logger.error("GEMINI_API_KEY is required but not provided")
+                return False
+
+            # Setup memory if not already done
+            if not self.memory_manager:
+                self.setup_memory()
+
+            # Build QA chain with memory
+            self.qa_chain = self.llm_builder.build_qa_chain(retriever, self.memory_manager)
+            logger.info("QA chain setup completed successfully")
 
             return True
         except Exception as e:
             logger.error(f"QA chain setup failed: {e}")
             return False
+
+    def _handle_specific_question(self, question: str) -> str:
+        """
+        Handle specific question.
+        """
+        greeting_questions = ["hello", "hi", "hey", "xin chào", "chào bạn", "chào"]
+        goodbye_questions = ["cảm ơn", "cảm ơn bạn", "thanks", "thank you"]
+        insult_questions = ["ngu", "dốt", "tệ", "đần độn", "đéo", "chó", "bò", "lợn", "heo"]
+        sensitive_questions = ["lồn", "cặc", "địt", "xàm", "mất dạy"]
+
+        response = None
+
+        if question.lower() in greeting_questions:
+            response = "Xin chào, tôi là trợ lý AI giúp bạn hỏi sâu về bài giảng này."
+
+        if question.lower() in goodbye_questions:
+            response = "Không có gì, tôi chỉ là một trợ lý AI giúp bạn hỏi sâu về bài giảng này."
+
+        if question.lower() in insult_questions:
+            response = "Ngưng phán xét. OK?"
+
+        if question.lower() in sensitive_questions:
+            response = "Ngưng văng tục. OK?"
+
+        return response
 
     def process_question(self, question: str) -> Tuple[str, List[Any], bool]:
         """
@@ -136,11 +189,29 @@ class ChatbotLogic:
         if not self.qa_chain:
             return "QA chain not initialized", [], False
 
+        response = self._handle_specific_question(question)
+        if response:
+            return response, [], True
+
         try:
+            # Add question to memory
+            if self.memory_manager:
+                self.memory_manager.add_user_message(question)
             # Process with QA chain
-            result = self.qa_chain.invoke({"query": question})
-            answer = result.get("result", "")
+            # ConversationalRetrievalChain uses "question" as input key
+            if hasattr(self.qa_chain, "memory") and self.qa_chain.memory:
+                # This is a ConversationalRetrievalChain with memory
+                result = self.qa_chain.invoke({"question": question})
+            else:
+                # This is a regular RetrievalQA chain
+                result = self.qa_chain.invoke({"query": question})
+            # Get answer from different possible keys
+            answer = result.get("result", result.get("answer", ""))
             sources = result.get("source_documents", [])
+
+            # Add answer to memory
+            if self.memory_manager:
+                self.memory_manager.add_ai_message(answer)
 
             # Handle empty answer
             if not answer.strip():
@@ -165,6 +236,7 @@ class ChatbotLogic:
             "qa_chain_initialized": self.qa_chain is not None,
             "relevance_checker_initialized": self.relevance_checker is not None,
             "relevance_checking_disabled": True,  # Indicate that relevance checking is disabled
+            "memory_initialized": self.memory_manager is not None,
         }
 
         if self.database_manager:

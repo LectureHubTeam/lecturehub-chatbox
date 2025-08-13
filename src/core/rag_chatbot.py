@@ -37,13 +37,17 @@ class RAGChatbot:
             if not self._handle_ingestion(config):
                 st.stop()
 
-        # Display chat history
-        self.chat_manager.display_chat_history()
-
-        # Handle user input
+        # Handle user input first
         user_question = self.ui_manager.render_chat_input()
         if user_question:
             self._handle_user_question(user_question)
+            st.rerun()  # Force UI refresh to show new messages
+
+        # Display memory stats
+        self.chat_manager.display_memory_stats()
+
+        # Display chat history (including new messages)
+        self.chat_manager.display_chat_history()
 
     def _is_system_initialized(self) -> bool:
         """Check if system is properly initialized."""
@@ -53,6 +57,7 @@ class RAGChatbot:
                 status.get("database_initialized", False),
                 status.get("vectorstore_initialized", False),
                 status.get("qa_chain_initialized", False),
+                status.get("memory_initialized", False),
                 # status.get("relevance_checker_initialized", False),  # Disabled
             ]
         )
@@ -88,6 +93,13 @@ class RAGChatbot:
                     self.ui_manager.show_error_message("Lỗi setup vector store")
                     return False
 
+                # Setup memory
+                if not self.chatbot_logic.setup_memory(
+                    config.get("memory_type", "buffer_window"), config.get("memory_k", 5)
+                ):
+                    self.ui_manager.show_error_message("Lỗi setup memory")
+                    return False
+
                 # Setup QA chain
                 if not self.chatbot_logic.setup_qa_chain():
                     self.ui_manager.show_error_message("Không thể khởi tạo LLM (Gemini). Kiểm tra GEMINI_API_KEY.")
@@ -120,6 +132,13 @@ class RAGChatbot:
                 self.ui_manager.show_error_message("Lỗi ingest dữ liệu")
                 return False
 
+            # Setup memory
+            if not self.chatbot_logic.setup_memory(
+                config.get("memory_type", "buffer_window"), config.get("memory_k", 5)
+            ):
+                self.ui_manager.show_error_message("Lỗi setup memory")
+                return False
+
             # Setup QA chain
             if not self.chatbot_logic.setup_qa_chain():
                 self.ui_manager.show_error_message("Không thể khởi tạo LLM (Gemini). Kiểm tra GEMINI_API_KEY.")
@@ -134,25 +153,30 @@ class RAGChatbot:
     def _handle_user_question(self, question: str):
         """Handle user question processing."""
         try:
-            # Process question using logic module
+            # Pre-processing: Handle greetings and simple questions first
+            if self.chat_manager._is_greeting(question):
+                self.chat_manager.handle_greeting(question)
+                return
+
+            if self.chat_manager._is_simple_question(question):
+                self.chat_manager.handle_simple_question(question)
+                return
+
+            # Process question using logic module (this also adds to memory)
             answer, sources, is_relevant = self.chatbot_logic.process_question(question)
 
-            # Add to chat history
+            # Add to chat history for UI display
             self.chat_manager.add_user_message(question)
-            st.chat_message("user").markdown(question)
 
             # Handle response
             if not is_relevant:
                 self.chat_manager.add_assistant_message(answer)
-                st.chat_message("assistant").markdown(answer)
                 st.stop()
             else:
                 self.chat_manager.add_assistant_message(answer)
-                st.chat_message("assistant").markdown(answer)
 
                 # Display sources
                 self.chat_manager.display_sources(sources)
         except Exception as e:
             error_msg = f"Lỗi xử lý câu hỏi: {e}"
             self.chat_manager.add_assistant_message(error_msg)
-            st.chat_message("assistant").markdown(error_msg)
