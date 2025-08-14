@@ -124,11 +124,10 @@ class ChatManager:
         self.add_user_message(greeting)
 
         responses = [
-            "Xin chào! 😊 Tôi là trợ lý AI hỗ trợ học tập về bài toán Caesar Cipher. "
-            "Bạn có câu hỏi gì về bài giảng không?",
-            "Chào bạn! 👋 Tôi sẵn sàng giúp bạn học về Caesar Cipher. Hãy hỏi bất cứ điều gì!",
+            "Xin chào! 😊 Tôi là trợ lý AI hỗ trợ học tập về bài toán tin." "Bạn có câu hỏi gì về bài giảng không?",
+            "Chào bạn! 👋 Tôi sẵn sàng giúp bạn học về toán tin. Hãy hỏi bất cứ điều gì!",
             "Hi! 😄 Tôi ở đây để hỗ trợ bạn học tập. Bạn muốn tìm hiểu gì về bài toán này?",
-            "Xin chào! 🌟 Tôi là chatbot hỗ trợ học tập. Bạn có thắc mắc gì về Caesar Cipher không?",
+            "Xin chào! 🌟 Tôi là chatbot hỗ trợ học tập. Bạn có thắc mắc gì về toán tin không?",
         ]
 
         import random

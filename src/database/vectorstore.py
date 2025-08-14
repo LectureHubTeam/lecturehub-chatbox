@@ -13,10 +13,26 @@ from src.core.config import DEFAULT_K_RETRIEVAL, DEVICE, EMBEDDING_MODEL_NAME, P
 class EmbeddingManager:
     """Manages embedding operations."""
 
+    _instance = None
+    _initialized = False
+
+    def __new__(cls, *args, **kwargs):
+        """Ensure only one instance of EmbeddingManager exists."""
+        if cls._instance is None:
+            cls._instance = super(EmbeddingManager, cls).__new__(cls)
+        return cls._instance
+
     def __init__(self):
+        """Initialize embedding manager. Only initializes once."""
+        # Only initialize once
+        if self._initialized:
+            return
+
         self.embeddings = HuggingFaceEmbeddings(
             model_name=EMBEDDING_MODEL_NAME, model_kwargs={"device": DEVICE}, encode_kwargs={"device": DEVICE}
         )
+
+        self._initialized = True
 
     def get_embeddings(self) -> HuggingFaceEmbeddings:
         """Get the embedding model instance."""
@@ -26,10 +42,32 @@ class EmbeddingManager:
 class VectorStoreManager:
     """Manages vector store operations."""
 
+    _instance = None
+    _initialized = False
+
+    def __new__(cls, *args, **kwargs):
+        """Ensure only one instance of VectorStoreManager exists."""
+        if cls._instance is None:
+            cls._instance = super(VectorStoreManager, cls).__new__(cls)
+        return cls._instance
+
     def __init__(self, connection_string: str, collection_name: str):
+        """
+        Initialize vector store manager. Only initializes once.
+
+        Args:
+            connection_string: Database connection string
+            collection_name: Name of the collection
+        """
+        # Only initialize once
+        if self._initialized:
+            return
+
         self.connection_string = connection_string
         self.collection_name = collection_name
         self.embedding_manager = EmbeddingManager()
+
+        self._initialized = True
 
     def rebuild_collection(self, documents: List[Any]) -> PGVector:
         """

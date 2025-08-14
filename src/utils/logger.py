@@ -61,6 +61,15 @@ class CustomFormatter(logging.Formatter):
 
 
 class Logger:
+    _instance = None
+    _initialized = False
+
+    def __new__(cls, *args, **kwargs):
+        """Ensure only one instance of Logger exists."""
+        if cls._instance is None:
+            cls._instance = super(Logger, cls).__new__(cls)
+        return cls._instance
+
     def __init__(
         self,
         name: str = "shift",
@@ -70,7 +79,8 @@ class Logger:
         format_log: str = "%(asctime)s - %(levelname)s - [in %(pathname)s:%(lineno)d] - %(message)s",
         format_log_timer: str = "%(asctime)s - %(levelname)s - [Timer] - %(message)s",
     ):
-        """Logger in json format that writes to a file and console.
+        """
+        Initialize logger. Only initializes once, subsequent calls return the existing instance.
 
         Args:
             name (str): Name of the logger.
@@ -82,6 +92,10 @@ class Logger:
             logger (logging.Logger): Logger object.
 
         """
+        # Only initialize once
+        if self._initialized:
+            return
+
         self.name = name
         self.level = level
         self.path_file = path_file
@@ -93,6 +107,8 @@ class Logger:
 
         self.logger = logging.getLogger(self.name)
         self.configure()
+
+        self._initialized = True
 
     def create_log_file(self):
         self.root_log = os.path.join(self.root_log, create_date_path())

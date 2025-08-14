@@ -14,20 +14,35 @@ from langchain_core.messages import get_buffer_string
 class ChatMemoryManager:
     """Manages conversation memory for the chatbot."""
 
+    _instance = None
+    _initialized = False
+
+    def __new__(cls, *args, **kwargs):
+        """Ensure only one instance of ChatMemoryManager exists."""
+        if cls._instance is None:
+            cls._instance = super(ChatMemoryManager, cls).__new__(cls)
+        return cls._instance
+
     def __init__(self, memory_type: str = "buffer_window", max_tokens: int = 2000, k: int = 5):
         """
-        Initialize memory manager.
+        Initialize memory manager. Only initializes once, subsequent calls return the existing instance.
 
         Args:
             memory_type: Type of memory ("buffer_window", "summary", "hybrid")
             max_tokens: Maximum tokens for summary memory
             k: Number of messages to keep in buffer window
         """
+        # Only initialize once
+        if self._initialized:
+            return
+
         self.memory_type = memory_type
         self.max_tokens = max_tokens
         self.k = k
         self.memory = None
         self._initialize_memory()
+
+        self._initialized = True
 
     def _initialize_memory(self):
         """Initialize the appropriate memory type."""
@@ -106,7 +121,10 @@ class ChatMemoryManager:
                 summary = summary_vars.get("summary", "")
 
                 if summary:
-                    return f"Tóm tắt cuộc hội thoại trước: {summary}\n\nLịch sử gần đây:\n{get_buffer_string(chat_history)}"
+                    return (
+                        f"Tóm tắt cuộc hội thoại trước: {summary}\n\n"
+                        f"Lịch sử gần đây:\n{get_buffer_string(chat_history)}"
+                    )
                 else:
                     return get_buffer_string(chat_history)
             else:
@@ -161,17 +179,32 @@ class ChatMemoryManager:
 class StreamlitMemoryManager:
     """Memory manager that integrates with Streamlit session state."""
 
+    _instance = None
+    _initialized = False
+
+    def __new__(cls, *args, **kwargs):
+        """Ensure only one instance of StreamlitMemoryManager exists."""
+        if cls._instance is None:
+            cls._instance = super(StreamlitMemoryManager, cls).__new__(cls)
+        return cls._instance
+
     def __init__(self, memory_type: str = "buffer_window", k: int = 10):
         """
-        Initialize Streamlit memory manager.
+        Initialize Streamlit memory manager. Only initializes once, subsequent calls return the existing instance.
 
         Args:
             memory_type: Type of memory ("buffer_window", "persistent")
             k: Number of messages to keep in buffer
         """
+        # Only initialize once
+        if self._initialized:
+            return
+
         self.memory_type = memory_type
         self.k = k
         self._initialize_session_state()
+
+        self._initialized = True
 
     def _initialize_session_state(self):
         """Initialize Streamlit session state for memory."""

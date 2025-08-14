@@ -13,6 +13,15 @@ from src.utils.logger import logger
 class DatabaseManager:
     """Manages PostgreSQL database connections and pgvector operations."""
 
+    _instance = None
+    _initialized = False
+
+    def __new__(cls, *args, **kwargs):
+        """Ensure only one instance of DatabaseManager exists."""
+        if cls._instance is None:
+            cls._instance = super(DatabaseManager, cls).__new__(cls)
+        return cls._instance
+
     def __init__(
         self,
         connection_string: Optional[str] = None,
@@ -24,6 +33,7 @@ class DatabaseManager:
     ):
         """
         Initialize database manager with connection parameters.
+        Only initializes once, subsequent calls return the existing instance.
 
         Args:
             connection_string: Full connection string (optional)
@@ -33,6 +43,10 @@ class DatabaseManager:
             user: Database user (optional, defaults to config)
             password: Database password (optional, defaults to config)
         """
+        # Only initialize once
+        if self._initialized:
+            return
+
         if connection_string:
             self.connection_string = connection_string
             self._psycopg_conn_str = self._to_psycopg_conn_str(connection_string)
@@ -51,6 +65,9 @@ class DatabaseManager:
             self._psycopg_conn_str = (
                 f"postgresql://{self.user}:{self.password}" f"@{self.host}:{self.port}/{self.database}"
             )
+
+        self._initialized = True
+        logger.info("DatabaseManager singleton initialized")
 
     def _to_psycopg_conn_str(self, sqlalchemy_style_url: str) -> str:
         """
