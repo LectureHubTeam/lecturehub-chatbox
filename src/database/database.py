@@ -6,7 +6,7 @@ from typing import Optional
 
 import psycopg
 
-from src.core.config import DB_HOST, DB_NAME, DB_PASSWORD, DB_PORT, DB_USER, EMBEDDING_DIM
+from src.core.config import DB_HOST, DB_NAME, DB_PASSWORD, DB_PORT, DB_USER
 from src.utils.logger import logger
 
 
@@ -74,25 +74,26 @@ class DatabaseManager:
         Convert an SQLAlchemy-style URL to a psycopg-compatible URL.
 
         Args:
-            sqlalchemy_style_url: URL in format postgresql://user:pass@host:5432/db
+            sqlalchemy_style_url: URL in format postgresql+psycopg://user:pass@host:5432/db
 
         Returns:
             psycopg-compatible connection string
         """
+        # Remove the +psycopg part to make it compatible with psycopg
+        if sqlalchemy_style_url.startswith("postgresql+psycopg://"):
+            return sqlalchemy_style_url.replace("postgresql+psycopg://", "postgresql://")
         return sqlalchemy_style_url
 
     def ensure_pgvector_schema(self) -> None:
         """
-        Ensure pgvector extension and helper table exist.
-        Creates HNSW index if supported, otherwise falls back to IVFFLAT.
+        Ensure pgvector extension exists.
+        PGVector will create its own tables automatically.
         """
         try:
             with psycopg.connect(self._psycopg_conn_str) as conn:
                 conn.autocommit = True
                 with conn.cursor() as cur:
                     self._create_pgvector_extension(cur)
-                    self._create_embeddings_table(cur)
-                    self._create_vector_index(cur)
         except Exception as e:
             logger.error("PostgreSQL schema setup failed: %s", e)
             raise
@@ -104,48 +105,6 @@ class DatabaseManager:
         except Exception as e:
             logger.warning("Could not create pgvector extension: %s", e)
             # Continue without pgvector extension - other operations may still work
-
-    def _create_embeddings_table(self, cursor) -> None:
-        """Create the embeddings helper table."""
-        try:
-            cursor.execute(
-                f"""
-                CREATE TABLE IF NOT EXISTS embeddings (
-                    id SERIAL PRIMARY KEY,
-                    content TEXT,
-                    embedding VECTOR({EMBEDDING_DIM}),
-                    metadata JSONB
-                );
-                """
-            )
-        except Exception as e:
-            logger.warning("Could not create embeddings table: %s", e)
-            # This might fail if pgvector extension is not available
-            raise
-
-    def _create_vector_index(self, cursor) -> None:
-        """Create vector index, trying HNSW first, then IVFFLAT."""
-        try:
-            # Try HNSW index first (pgvector >= 0.5)
-            cursor.execute(
-                """
-                CREATE INDEX IF NOT EXISTS embeddings_hnsw_idx
-                ON embeddings USING hnsw (embedding vector_cosine_ops);
-                """
-            )
-        except Exception:
-            try:
-                # Fall back to IVFFLAT
-                cursor.execute("SET enable_seqscan = off;")
-                cursor.execute(
-                    """
-                    CREATE INDEX IF NOT EXISTS embeddings_ivfflat_idx
-                    ON embeddings USING ivfflat (embedding vector_cosine_ops)
-                    WITH (lists = 100);
-                    """
-                )
-            except Exception as e2:
-                logger.warning("Could not create HNSW/IVFFLAT index: %s", e2)
 
     def test_connection(self) -> bool:
         """Test if the database connection is working."""

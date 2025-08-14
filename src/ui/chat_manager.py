@@ -79,6 +79,8 @@ class ChatManager:
     def add_user_message(self, message: str):
         """Add a user message to chat history."""
         st.session_state["messages"].append({"role": "user", "content": message})
+        # Clear previous sources when new user message is added
+        st.session_state["current_sources"] = []
 
     def add_assistant_message(self, message: str):
         """Add an assistant message to chat history."""
@@ -86,13 +88,14 @@ class ChatManager:
 
     def display_chat_history(self):
         """Display the chat history in the UI."""
+        # Display all messages
         for msg in st.session_state["messages"]:
             if msg["role"] == "user":
                 st.chat_message("user").markdown(msg["content"])
             else:
                 st.chat_message("assistant").markdown(msg["content"])
 
-        # Display sources if available
+        # Display sources if available (only for the last assistant message)
         if st.session_state.get("current_sources"):
             self.display_sources_from_session()
 
@@ -124,7 +127,7 @@ class ChatManager:
         self.add_user_message(greeting)
 
         responses = [
-            "Xin chào! 😊 Tôi là trợ lý AI hỗ trợ học tập về bài toán tin." "Bạn có câu hỏi gì về bài giảng không?",
+            "Xin chào! 😊 Tôi là trợ lý AI hỗ trợ học tập về bài toán tin. Bạn có câu hỏi gì về bài giảng không?",
             "Chào bạn! 👋 Tôi sẵn sàng giúp bạn học về toán tin. Hãy hỏi bất cứ điều gì!",
             "Hi! 😄 Tôi ở đây để hỗ trợ bạn học tập. Bạn muốn tìm hiểu gì về bài toán này?",
             "Xin chào! 🌟 Tôi là chatbot hỗ trợ học tập. Bạn có thắc mắc gì về toán tin không?",
@@ -144,7 +147,7 @@ class ChatManager:
         elif "tạm biệt" in question.lower() or "goodbye" in question.lower() or "bye" in question.lower():
             response = "Tạm biệt! 👋 Chúc bạn học tập tốt! Hẹn gặp lại!"
         elif "khỏe" in question.lower() or "thế nào" in question.lower():
-            response = "Cảm ơn bạn! 😊 Tôi luôn sẵn sàng hỗ trợ học tập. Bạn có câu hỏi gì về Caesar Cipher không?"
+            response = "Cảm ơn bạn! 😊 Tôi luôn sẵn sàng hỗ trợ học tập. Bạn có câu hỏi gì về bài giảng nữa không?"
         else:
             response = "Cảm ơn bạn! 😊 Tôi luôn sẵn sàng hỗ trợ. Bạn có câu hỏi gì về bài giảng không?"
 

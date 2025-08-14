@@ -7,7 +7,7 @@ from typing import Any, List
 from langchain_community.vectorstores.pgvector import PGVector
 from langchain_huggingface import HuggingFaceEmbeddings
 
-from src.core.config import DEFAULT_K_RETRIEVAL, DEVICE, EMBEDDING_MODEL_NAME, PROBLEM_ID
+from src.core.config import DEFAULT_K_RETRIEVAL, DEVICE, EMBEDDING_MODEL_NAME, get_collection_name
 
 
 class EmbeddingManager:
@@ -51,23 +51,34 @@ class VectorStoreManager:
             cls._instance = super(VectorStoreManager, cls).__new__(cls)
         return cls._instance
 
-    def __init__(self, connection_string: str, collection_name: str):
+    def __init__(self, connection_string: str, problem_name: str):
         """
         Initialize vector store manager. Only initializes once.
 
         Args:
             connection_string: Database connection string
-            collection_name: Name of the collection
+            problem_name: Name of the problem
         """
+        # Reset if problem_name changes
+        if hasattr(self, "problem_name") and self.problem_name != problem_name:
+            self._reset_instance()
+
         # Only initialize once
         if self._initialized:
             return
 
         self.connection_string = connection_string
-        self.collection_name = collection_name
+        self.problem_name = problem_name
+        self.collection_name = get_collection_name(problem_name)
         self.embedding_manager = EmbeddingManager()
 
         self._initialized = True
+
+    def _reset_instance(self):
+        """Reset the singleton instance for new problem."""
+        VectorStoreManager._instance = None
+        VectorStoreManager._initialized = False
+        self._initialized = False
 
     def rebuild_collection(self, documents: List[Any]) -> PGVector:
         """
@@ -127,17 +138,21 @@ class VectorStoreManager:
 
         return vs
 
-    def build_retriever(self, vs: PGVector, problem_id: str = PROBLEM_ID, k: int = DEFAULT_K_RETRIEVAL):
+    def build_retriever(self, vs: PGVector, k: int = DEFAULT_K_RETRIEVAL):
         """
-        Build a retriever with metadata filtering.
+        Build a retriever with problem_name filtering.
 
         Args:
             vs: PGVector instance
-            problem_id: Problem ID to filter by
             k: Number of documents to retrieve
 
         Returns:
             Retriever instance
         """
-        # Use simple retriever without metadata filtering to avoid jsonb_path_match issues
-        return vs.as_retriever(search_kwargs={"k": k})
+        # Create a retriever with problem_name filtering
+        retriever = vs.as_retriever(search_kwargs={"k": k})
+
+        # Since we're using separate collections per problem,
+        # the filtering is already handled by the collection itself
+        # No need for additional filtering
+        return retriever

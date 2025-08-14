@@ -84,23 +84,8 @@ def check_database_data():
                         print(f"     Collection: {embedding[3]}")
                         print()
 
-                # Check our custom embeddings table
-                print("\n5. Checking custom embeddings table...")
-                cur.execute("SELECT COUNT(*) FROM embeddings;")
-                custom_count = cur.fetchone()[0]
-                print(f"Custom embeddings: {custom_count}")
-
-                if custom_count > 0:
-                    cur.execute("SELECT id, content, metadata FROM embeddings LIMIT 3;")
-                    custom_embeddings = cur.fetchall()
-                    for embedding in custom_embeddings:
-                        print(f"  - ID: {embedding[0]}")
-                        print(f"    Content: {embedding[1][:100]}...")
-                        print(f"    Metadata: {embedding[2]}")
-                        print()
-
                 # Check PostgreSQL version
-                print("\n6. Checking PostgreSQL version...")
+                print("\n5. Checking PostgreSQL version...")
                 cur.execute("SELECT version();")
                 version = cur.fetchone()[0]
                 print(f"PostgreSQL version: {version}")

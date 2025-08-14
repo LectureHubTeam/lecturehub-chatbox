@@ -5,7 +5,7 @@ Keyword extraction and relevance checking functionality.
 import re
 from typing import Any, List, Set
 
-from src.core.config import DEFAULT_MAX_KEYWORDS, PROBLEM_ID
+from src.core.config import DEFAULT_MAX_KEYWORDS
 
 
 class KeywordExtractor:
@@ -39,7 +39,7 @@ class KeywordExtractor:
         keywords = set(sorted_tokens[: self.max_keywords])
 
         # Add problem-specific anchors
-        keywords.update({"bài", "giảng", "đề", "bài", "code", "python", PROBLEM_ID, "pdf", "md"})
+        keywords.update({"bài", "giảng", "đề", "bài", "code", "python", "pdf", "md"})
 
         return keywords
 

@@ -7,7 +7,7 @@ without requiring Streamlit context.
 
 from typing import Any, Dict, List, Optional, Tuple
 
-from src.core.config import COLLECTION_NAME, PROBLEM_ID, REFUSAL_MSG
+from src.core.config import REFUSAL_MSG
 from src.database import DatabaseManager, VectorStoreManager
 from src.llm import KeywordExtractor, LLMChainBuilder
 from src.utils import DocumentLoader, DocumentProcessor
@@ -29,6 +29,7 @@ class ChatbotLogic:
         self.relevance_checker = None
         self.qa_chain = None
         self.database_manager = None
+        self.current_problem = None
 
     def setup_database(self, connection_string: str = None, **db_params) -> bool:
         """
@@ -50,34 +51,40 @@ class ChatbotLogic:
             logger.error(f"Database setup failed: {e}")
             return False
 
-    def load_and_process_documents(self) -> Optional[List[Any]]:
+    def load_and_process_documents(self, problem_name: str) -> Optional[List[Any]]:
         """
-        Load and process documents.
+        Load and process documents for a specific problem.
+
+        Args:
+            problem_name: Name of the problem
 
         Returns:
             List of processed documents or None if failed
         """
         try:
-            raw_docs = self.document_loader.load_all_documents()
+            raw_docs = self.document_loader.load_problem_documents(problem_name)
 
             if not raw_docs:
-                logger.warning("No documents found to process")
+                logger.warning(f"No documents found for problem: {problem_name}")
                 return None
 
-            split_docs = self.document_processor.chunk_documents(raw_docs)
+            split_docs = self.document_processor.chunk_documents(raw_docs, problem_name)
 
-            logger.info(f"Processed {len(split_docs)} document chunks")
+            logger.info(f"Processed {len(split_docs)} document chunks for problem: {problem_name}")
             return split_docs
         except Exception as e:
-            logger.error(f"Document processing failed: {e}")
+            logger.error(f"Document processing failed for problem {problem_name}: {e}")
             return None
 
-    def setup_vectorstore(self, connection_string: str, documents: List[Any], force_rebuild: bool = False) -> bool:
+    def setup_vectorstore(
+        self, connection_string: str, problem_name: str, documents: List[Any], force_rebuild: bool = False
+    ) -> bool:
         """
-        Setup vector store.
+        Setup vector store for a specific problem.
 
         Args:
             connection_string: Database connection string
+            problem_name: Name of the problem
             documents: Documents to ingest
             force_rebuild: Whether to force rebuild the collection
 
@@ -85,16 +92,53 @@ class ChatbotLogic:
             True if setup successful, False otherwise
         """
         try:
-            self.vectorstore_manager = VectorStoreManager(connection_string, COLLECTION_NAME)
+            self.vectorstore_manager = VectorStoreManager(connection_string, problem_name)
+            self.current_problem = problem_name
 
             vs = self.vectorstore_manager.get_or_create_vectorstore(documents, force_rebuild=force_rebuild)
 
             # Store vectorstore for later use
             self._vectorstore = vs
-            logger.info("Vector store setup completed successfully")
+            logger.info(f"Vector store setup completed successfully for problem: {problem_name}")
             return True
         except Exception as e:
-            logger.error(f"Vector store setup failed: {e}")
+            logger.error(f"Vector store setup failed for problem {problem_name}: {e}")
+            return False
+
+    def setup_vectorstore_from_existing(self, connection_string: str, problem_name: str) -> bool:
+        """
+        Setup vector store from existing data without re-processing documents.
+
+        Args:
+            connection_string: Database connection string
+            problem_name: Name of the problem
+
+        Returns:
+            True if setup successful, False otherwise
+        """
+        try:
+            self.vectorstore_manager = VectorStoreManager(connection_string, problem_name)
+            self.current_problem = problem_name
+
+            # Try to connect to existing collection
+            vs = self.vectorstore_manager.get_or_create_vectorstore([], force_rebuild=False)
+
+            # Test if collection has data
+            try:
+                test_result = vs.similarity_search("test", k=1)
+                if test_result:
+                    self._vectorstore = vs
+                    logger.info(f"Loaded existing vector store for problem: {problem_name}")
+                    return True
+                else:
+                    logger.info(f"No existing data found for problem: {problem_name}")
+                    return False
+            except Exception:
+                logger.info(f"Collection not found or empty for problem: {problem_name}")
+                return False
+
+        except Exception as e:
+            logger.error(f"Error loading existing vector store for problem {problem_name}: {e}")
             return False
 
     def setup_memory(self, memory_type: str = "buffer_window", k: int = 5) -> bool:
@@ -130,7 +174,7 @@ class ChatbotLogic:
                 logger.error("Vector store not initialized")
                 return False
 
-            retriever = self.vectorstore_manager.build_retriever(self._vectorstore, PROBLEM_ID)
+            retriever = self.vectorstore_manager.build_retriever(self._vectorstore)
 
             from src.core.config import GEMINI_API_KEY
 
@@ -244,11 +288,12 @@ class ChatbotLogic:
 
         return status
 
-    def initialize_system(self, connection_string: str = None, **db_params) -> bool:
+    def initialize_system(self, problem_name: str, connection_string: str = None, **db_params) -> bool:
         """
-        Initialize the complete system.
+        Initialize the complete system for a specific problem.
 
         Args:
+            problem_name: Name of the problem
             connection_string: Database connection string
             **db_params: Database parameters
 
@@ -256,12 +301,14 @@ class ChatbotLogic:
             True if initialization successful, False otherwise
         """
         try:
+            self.current_problem = problem_name
+
             # Setup database
             if not self.setup_database(connection_string, **db_params):
                 return False
 
             # Load and process documents
-            documents = self.load_and_process_documents()
+            documents = self.load_and_process_documents(problem_name)
             if documents is None:
                 return False
 
@@ -273,17 +320,17 @@ class ChatbotLogic:
                     f"@{db_params['host']}:{db_params['port']}/{db_params['database']}"
                 )
 
-            if not self.setup_vectorstore(conn_str, documents):
+            if not self.setup_vectorstore(conn_str, problem_name, documents):
                 return False
 
             # Setup QA chain
             if not self.setup_qa_chain():
                 return False
 
-            logger.info("System initialization completed successfully")
+            logger.info(f"System initialization completed successfully for problem: {problem_name}")
             return True
         except Exception as e:
-            logger.error(f"System initialization failed: {e}")
+            logger.error(f"System initialization failed for problem {problem_name}: {e}")
             return False
 
 
@@ -293,11 +340,12 @@ def create_chatbot() -> ChatbotLogic:
     return ChatbotLogic()
 
 
-def test_chatbot_initialization(connection_string: str = None, **db_params) -> bool:
+def test_chatbot_initialization(problem_name: str, connection_string: str = None, **db_params) -> bool:
     """
     Test chatbot initialization.
 
     Args:
+        problem_name: Name of the problem
         connection_string: Database connection string
         **db_params: Database parameters
 
@@ -305,15 +353,18 @@ def test_chatbot_initialization(connection_string: str = None, **db_params) -> b
         True if initialization successful, False otherwise
     """
     chatbot = create_chatbot()
-    return chatbot.initialize_system(connection_string, **db_params)
+    return chatbot.initialize_system(problem_name, connection_string, **db_params)
 
 
-def test_question_processing(question: str, connection_string: str = None, **db_params) -> Tuple[str, List[Any], bool]:
+def test_question_processing(
+    question: str, problem_name: str, connection_string: str = None, **db_params
+) -> Tuple[str, List[Any], bool]:
     """
     Test question processing.
 
     Args:
         question: Question to test
+        problem_name: Name of the problem
         connection_string: Database connection string
         **db_params: Database parameters
 
@@ -322,7 +373,7 @@ def test_question_processing(question: str, connection_string: str = None, **db_
     """
     chatbot = create_chatbot()
 
-    if not chatbot.initialize_system(connection_string, **db_params):
+    if not chatbot.initialize_system(problem_name, connection_string, **db_params):
         return "System initialization failed", [], False
 
     return chatbot.process_question(question)

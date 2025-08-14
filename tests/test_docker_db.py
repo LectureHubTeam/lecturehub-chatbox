@@ -47,94 +47,23 @@ def test_docker_database():
         print(f"   ✗ pgvector test failed: {e}")
         return False
 
-    # Test 3: Check embeddings table
-    print("\n3. Testing embeddings table...")
+    # Test 3: Test basic vector operations
+    print("\n3. Testing basic vector operations...")
     try:
         with psycopg.connect(
             host="localhost", port="5432", database="embedding", user="root", password="root_password"
         ) as conn:
             with conn.cursor() as cur:
-                cur.execute(
-                    """
-                    SELECT table_name
-                    FROM information_schema.tables
-                    WHERE table_name = 'embeddings'
-                """
-                )
-                if cur.fetchone():
-                    print("   ✓ embeddings table exists")
-                else:
-                    print("   ✗ embeddings table not found")
-                    return False
-    except Exception as e:
-        print(f"   ✗ Table check failed: {e}")
-        return False
-
-    # Test 4: Check vector indexes
-    print("\n4. Testing vector indexes...")
-    try:
-        with psycopg.connect(
-            host="localhost", port="5432", database="embedding", user="root", password="root_password"
-        ) as conn:
-            with conn.cursor() as cur:
-                cur.execute(
-                    """
-                    SELECT indexname
-                    FROM pg_indexes
-                    WHERE tablename = 'embeddings'
-                    AND indexname LIKE '%hnsw%'
-                """
-                )
-                if cur.fetchone():
-                    print("   ✓ HNSW index exists")
-                else:
-                    print("   ✗ HNSW index not found")
-                    return False
-    except Exception as e:
-        print(f"   ✗ Index check failed: {e}")
-        return False
-
-    # Test 5: Test vector operations
-    print("\n5. Testing vector operations...")
-    try:
-        with psycopg.connect(
-            host="localhost", port="5432", database="embedding", user="root", password="root_password"
-        ) as conn:
-            with conn.cursor() as cur:
-                # Test inserting a vector
-                test_vector = [0.1] * 384  # 384-dimensional vector
-                cur.execute(
-                    """
-                    INSERT INTO embeddings (content, embedding, metadata)
-                    VALUES (%s, %s, %s)
-                """,
-                    ("test content", test_vector, {"test": "data"}),
-                )
-
-                # Test vector similarity search
-                cur.execute(
-                    """
-                    SELECT content, embedding <=> %s as distance
-                    FROM embeddings
-                    ORDER BY embedding <=> %s
-                    LIMIT 1
-                """,
-                    (test_vector, test_vector),
-                )
-
+                # Test if vector extension is working
+                cur.execute("SELECT '[1,2,3]'::vector;")
                 result = cur.fetchone()
                 if result:
                     print("   ✓ Vector operations working")
                 else:
                     print("   ✗ Vector operations failed")
                     return False
-
-                # Clean up test data
-                cur.execute("DELETE FROM embeddings WHERE content = 'test content'")
-                conn.commit()
-
     except Exception as e:
-        print(f"   ✗ Vector operations failed: {e}")
+        print(f"   ✗ Vector operations test failed: {e}")
         return False
 
     print("\n✓ All Docker database tests passed!")
