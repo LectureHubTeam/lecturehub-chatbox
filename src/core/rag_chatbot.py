@@ -36,6 +36,10 @@ class RAGChatbot:
         if not selected_problem:
             self.ui_manager.render_title()
             st.warning("Vui lòng chọn một problem từ sidebar để bắt đầu chat.")
+            # Still show chat input for testing
+            user_question = self.ui_manager.render_chat_input()
+            if user_question:
+                st.info("Vui lòng chọn problem trước khi chat.")
             return
 
         # Render title with problem name

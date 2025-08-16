@@ -18,7 +18,31 @@ except Exception:
     UnstructuredMarkdownLoader = None
     HAS_UNSTRUCTURED = False
 
-from src.core.config import DEFAULT_CHUNK_OVERLAP, DEFAULT_CHUNK_SIZE, get_problem_files
+# Import config values directly to avoid circular imports
+DEFAULT_CHUNK_SIZE = 500
+DEFAULT_CHUNK_OVERLAP = 50
+
+# Import get_problem_files function directly
+LECTURES_DIR = "data/lectures"
+
+
+def get_problem_files(problem_name: str) -> dict:
+    """Get file paths for a specific problem."""
+    problem_dir = os.path.join(LECTURES_DIR, problem_name)
+    if not os.path.exists(problem_dir):
+        return {}
+
+    files = {}
+    for file in os.listdir(problem_dir):
+        file_path = os.path.join(problem_dir, file)
+        if file.endswith(".pdf"):
+            files["pdf"] = file_path
+        elif file.endswith(".md"):
+            files["markdown"] = file_path
+        elif file.endswith(".py"):
+            files["python"] = file_path
+
+    return files
 
 
 class DocumentLoader:

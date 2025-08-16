@@ -6,7 +6,7 @@ import os
 
 import streamlit as st
 
-from src.core.config import DEFAULT_CONN_STR
+from src.core.config import DEFAULT_CONN_STR, get_available_problems
 
 
 class SidebarManager:
@@ -20,82 +20,62 @@ class SidebarManager:
         with st.sidebar:
             st.header("Cấu hình")
 
-            # Database configuration section
-            st.subheader("Database Configuration")
+            # Problem selection section
+            st.subheader("Problem Selection")
 
-            use_connection_string = st.checkbox(
-                "Use connection string",
-                value=False,
-                help="Check to use full connection string instead of individual parameters",
-            )
+            # Get available problems
+            available_problems = get_available_problems()
 
-            if use_connection_string:
-                conn_str = st.text_input(
-                    "PostgreSQL + pgvector connection string",
-                    value=DEFAULT_CONN_STR,
-                    help="Ví dụ: postgresql+psycopg://user:pass@host:5432/db",
-                )
-                db_params = {}
-            else:
-                # Individual database parameters
-                col1, col2 = st.columns(2)
-                with col1:
-                    db_host = st.text_input("Host", value=os.getenv("DB_HOST", "localhost"))
-                    db_port = st.text_input("Port", value=os.getenv("DB_PORT", "5432"))
-                    db_name = st.text_input("Database", value=os.getenv("DB_NAME", "embedding"))
-                with col2:
-                    db_user = st.text_input("User", value=os.getenv("DB_USER", "root"))
-                    db_password = st.text_input(
-                        "Password", value=os.getenv("DB_PASSWORD", "root_password"), type="password"
-                    )
-
-                conn_str = None
-                db_params = {
-                    "host": db_host,
-                    "port": db_port,
-                    "database": db_name,
-                    "user": db_user,
-                    "password": db_password,
+            if not available_problems:
+                st.error("Không tìm thấy problem nào trong thư mục data/lectures/")
+                st.info("Hãy tạo thư mục problem với các file .pdf, .md, .py")
+                # Return default config instead of None
+                return {
+                    "selected_problem": None,
+                    "connection_string": DEFAULT_CONN_STR,
+                    "db_params": {},
+                    "memory_type": "buffer_window",
+                    "memory_k": 5,
+                    "rebuild": False,
+                    "ingest_button": False,
                 }
 
-            # LLM configuration section
-            st.subheader("LLM Configuration")
-            api_key = st.text_input(
-                "GEMINI_API_KEY",
-                value=os.environ.get("GEMINI_API_KEY", ""),
-                type="password",
-                help="Yêu cầu cho Gemini LLM (miễn phí).",
+            # Problem selection
+            selected_problem = st.selectbox(
+                "Chọn Problem", options=available_problems, index=0, help="Chọn problem để chat"
             )
 
-            if api_key:
-                os.environ["GEMINI_API_KEY"] = api_key
+            # Show problem files
+            if selected_problem:
+                st.info(f"📁 Problem: {selected_problem}")
 
-            # Memory configuration section
-            st.subheader("Memory Configuration")
-            memory_type = st.selectbox(
-                "Memory Type",
-                options=["buffer_window", "summary", "hybrid"],
-                index=0,
-                help="Loại memory để lưu trữ lịch sử hội thoại",
-            )
-            memory_k = st.slider(
-                "Buffer Size (k)",
-                min_value=1,
-                max_value=20,
-                value=5,
-                help="Số lượng tin nhắn gần nhất để giữ trong buffer",
-            )
+                # Show files in the problem folder
+                problem_files = []
+                problem_dir = os.path.join("data/lectures", selected_problem)
+                if os.path.exists(problem_dir):
+                    for file in os.listdir(problem_dir):
+                        if file.endswith((".pdf", ".md", ".py")):
+                            problem_files.append(file)
 
-            # Application configuration section
-            st.subheader("Application Configuration")
-            rebuild = st.checkbox("Tái tạo (rebuild) chỉ mục/collection", value=False)
+                if problem_files:
+                    st.write("📄 Files:")
+                    for file in problem_files:
+                        st.write(f"  • {file}")
+                else:
+                    st.warning("Không tìm thấy file nào trong thư mục problem")
 
-            ingest_btn = st.button("Ingest dữ liệu")
+            # Use default memory settings
+            memory_type = "buffer_window"
+            memory_k = 5
+            rebuild = False
+
+            # Only show ingest button if no data exists
+            ingest_btn = st.button("Ingest dữ liệu (nếu cần)")
 
             return {
-                "connection_string": conn_str,
-                "db_params": db_params,
-                "api_key": api_key,
+                "selected_problem": selected_problem,
+                "connection_string": DEFAULT_CONN_STR,
+                "db_params": {},
                 "memory_type": memory_type,
                 "memory_k": memory_k,
                 "rebuild": rebuild,
@@ -109,12 +89,17 @@ class MainUIManager:
     def __init__(self):
         pass
 
-    def render_title(self):
+    def render_title(self, problem_name: str = None):
         """Render the main title."""
-        st.title("🤖 RAG Chatbot — Bài giảng (ma_de_001)")
+        if problem_name:
+            st.title(f"🤖 RAG Chatbot — {problem_name}")
+        else:
+            st.title("🤖 RAG Chatbot")
 
     def render_chat_input(self):
         """Render the chat input."""
+        # Add some spacing before chat input
+        st.write("")  # Add empty line for spacing
         return st.chat_input("Đặt câu hỏi về bài giảng/đề/code...")
 
     def show_info_message(self, message: str):

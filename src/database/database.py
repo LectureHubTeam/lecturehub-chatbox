@@ -2,12 +2,23 @@
 Database operations for PostgreSQL and pgvector.
 """
 
+import os
 from typing import Optional
 
 import psycopg
+from dotenv import load_dotenv
 
-from src.core.config import DB_HOST, DB_NAME, DB_PASSWORD, DB_PORT, DB_USER
 from src.utils.logger import logger
+
+# Load environment variables
+load_dotenv()
+
+# Database configuration
+DB_HOST = os.getenv("DB_HOST", "localhost")
+DB_PORT = os.getenv("DB_PORT", "5432")
+DB_NAME = os.getenv("DB_NAME", "embedding")
+DB_USER = os.getenv("DB_USER", "root")
+DB_PASSWORD = os.getenv("DB_PASSWORD", "root_password")
 
 
 class DatabaseManager:

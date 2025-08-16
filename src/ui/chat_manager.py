@@ -88,6 +88,11 @@ class ChatManager:
 
     def display_chat_history(self):
         """Display the chat history in the UI."""
+        # Check if there are messages to display
+        if not st.session_state.get("messages"):
+            st.info("Chưa có tin nhắn nào. Hãy bắt đầu chat!")
+            return
+
         # Display all messages
         for msg in st.session_state["messages"]:
             if msg["role"] == "user":
